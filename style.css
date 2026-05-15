@@ -945,6 +945,19 @@ footer {
     .about-feature-card {
         transform: none !important;
     }
+
+    .badge-group {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        max-width: 400px;
+        margin: 40px auto;
+    }
+
+    .highlight-card {
+        width: 100%;
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 480px) {
