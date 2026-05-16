@@ -553,6 +553,11 @@
                                     required>
                             </div>
                             <div class="form-group">
+                                <label for="phone">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" placeholder="Enter your phone number"
+                                    required>
+                            </div>
+                            <div class="form-group">
                                 <label for="subject">Subject</label>
                                 <input type="text" id="subject" name="subject" placeholder="What is this regarding?"
                                     required>
@@ -561,11 +566,18 @@
                                 <label for="message">Message</label>
                                 <textarea id="message" name="message" rows="5" placeholder="Tell us about your project"
                                     required></textarea>
+                            <div class="form-group">
+                                <label>Resume / Attachment (PDF, DOC, DOCX)</label>
+                                <div class="file-upload-wrapper">
+                                    <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" hidden>
+                                    <button type="button" class="btn btn-secondary file-btn" id="file-upload-trigger">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                        Upload Resume
+                                    </button>
+                                    <div id="file-preview" class="file-preview">No file selected</div>
+                                </div>
                             </div>
-                            <p class="form-instruction"
-                                style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Clicking the
-                                button below will open WhatsApp with your message ready to send.</p>
-                            <button type="submit" class="btn btn-primary submit-btn">Send via WhatsApp</button>
+                            <button type="submit" class="btn btn-primary submit-btn">Submit Application</button>
                         </form>
                     </div>
                 </div>
@@ -631,37 +643,117 @@
         // Contact Form Submission Handling
         const contactForm = document.getElementById('contact-form');
         const submitBtn = contactForm.querySelector('.submit-btn');
+        const fileInput = document.getElementById('resume');
+        const fileTrigger = document.getElementById('file-upload-trigger');
+        const filePreview = document.getElementById('file-preview');
 
         // Add status message element
         const statusMsg = document.createElement('div');
         statusMsg.className = 'form-status';
         contactForm.appendChild(statusMsg);
 
-        contactForm.addEventListener('submit', (e) => {
+        // Handle custom file upload trigger
+        fileTrigger.addEventListener('click', () => fileInput.click());
+
+        // Show file preview and validate
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const allowedTypes = ['.pdf', '.doc', '.docx'];
+                const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+                
+                if (!allowedTypes.includes(fileExt)) {
+                    filePreview.innerHTML = `<span style="color: #ef4444;">Invalid file type. Please use PDF, DOC, or DOCX.</span>`;
+                    fileInput.value = '';
+                    return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                    filePreview.innerHTML = `<span style="color: #ef4444;">File too large. Maximum size is 5MB.</span>`;
+                    fileInput.value = '';
+                    return;
+                }
+
+                filePreview.innerHTML = `<span style="color: var(--primary);">✓ ${file.name} selected</span>`;
+            } else {
+                filePreview.textContent = 'No file selected';
+            }
+        });
+
+        // Convert file to Base64
+        const toBase64 = file => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        contactForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const formData = new FormData(contactForm);
-            const data = Object.fromEntries(formData.entries());
+            // UI Loading State
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Submitting...';
+            statusMsg.className = 'form-status';
+            statusMsg.textContent = '';
 
-            // Format WhatsApp Message
-            const whatsappNumber = "918827959472";
-            const message = `Hello FunoSoft,
-            
-Name: ${data.name}
-Email: ${data.email}
-Subject: ${data.subject}
+            try {
+                const formData = new FormData(contactForm);
+                const data = Object.fromEntries(formData.entries());
+                
+                let fileBase64 = '';
+                let fileName = '';
+                let fileType = '';
 
-Message:
-${data.message}`;
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const fullBase64 = await toBase64(file);
+                    // The script expects base64 without the data:mime;base64, prefix based on my previous artifacts
+                    // But wait, the user's provided script uses Utilities.base64Decode(data.fileBase64)
+                    // If the JS is reader.readAsDataURL, it includes the prefix.
+                    // Let's check the user's script logic: Utilities.base64Decode(data.fileBase64)
+                    // Usually this expects the raw base64 string.
+                    fileBase64 = fullBase64.split(',')[1];
+                    fileName = file.name;
+                    fileType = file.type;
+                }
 
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappURL = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+                const payload = {
+                    name: data.name,
+                    email: data.email,
+                    phone: data.phone,
+                    subject: data.subject,
+                    message: data.message,
+                    fileBase64: fileBase64,
+                    fileName: fileName,
+                    fileType: fileType
+                };
 
-            // Redirect to WhatsApp
-            window.open(whatsappURL, '_blank');
+                const response = await fetch('https://script.google.com/macros/s/AKfycbz_FrEhHZ0TkcsmMc1ZO59cnRA-sQZDXm8ZyA8r66H4vFiDOub7KrhO2I3Vye0xmEg/exec', {
+                    method: 'POST',
+                    mode: 'no-cors', // Apps Script requires no-cors for simple fetch or it fails preflight
+                    body: JSON.stringify(payload)
+                });
 
-            // Optional: Clear form
-            contactForm.reset();
+                // Since we use no-cors, we can't see the response body. 
+                // However, the request is sent. We'll assume success if no error is thrown.
+                // Alternatively, we can use a small trick with a hidden iframe if we need proper response.
+                // But usually for GAS, 'no-cors' works if we just want to send data.
+                
+                // Show success
+                statusMsg.textContent = 'Application submitted successfully.';
+                statusMsg.className = 'form-status success';
+                contactForm.reset();
+                filePreview.textContent = 'No file selected';
+
+            } catch (error) {
+                console.error('Submission error:', error);
+                statusMsg.textContent = 'Something went wrong. Please try again.';
+                statusMsg.className = 'form-status error';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Application';
+            }
         });
     </script>
 </body>
