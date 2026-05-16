@@ -566,6 +566,7 @@
                                 <label for="message">Message</label>
                                 <textarea id="message" name="message" rows="5" placeholder="Tell us about your project"
                                     required></textarea>
+                            </div>
                             <div class="form-group">
                                 <label>Resume / Attachment (PDF, DOC, DOCX)</label>
                                 <div class="file-upload-wrapper">
@@ -728,6 +729,8 @@
                     fileName: fileName,
                     fileType: fileType
                 };
+
+                console.log('Final Payload:', payload);
 
                 const response = await fetch('https://script.google.com/macros/s/AKfycbxeNtfuBeS85OWMzsUGAuueufDyL23PP_nmkTGe78TOti2LT_VNVI4mPqPv98tO4foa/exec', {
                     method: 'POST',
